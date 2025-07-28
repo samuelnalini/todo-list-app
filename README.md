@@ -8,8 +8,9 @@ Just run the "main" binary and follow the REPL instructions.
 ### NOTES:
 I learned a lot from this project, including:
   - Creating a REPL
-  - User input handling
+  - User input
   - File handling - I/O
   - Error handling
+  - Makefiles
 
 Feel free to check out my other projects on my GitHub as well!
