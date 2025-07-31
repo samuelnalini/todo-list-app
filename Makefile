@@ -1,4 +1,4 @@
-TARGET = main
+TARGET = app
 CC = g++
 CFLAGS = -std=c++23 -g -Wall
 SRC_DIR = src

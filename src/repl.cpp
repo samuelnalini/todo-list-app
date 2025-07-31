@@ -1,5 +1,6 @@
 #include "headers/repl.hpp"
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -23,14 +24,17 @@ std::string getInput(const char* prompt) {
 }
 
 
-bool REPL::LoadFromFile(const char* fileName) {
-    std::ifstream inputFile(fileName);
+bool REPL::LoadFromFile() {
+    std::filesystem::path* savePath{ m_config.getSavePath() };
+    std::ifstream inputFile(*savePath);
     int items{ 0 };
 
     if (!inputFile.is_open()) {
-        std::cerr << "Failed to load from file " << fileName << '\n';
+        std::cerr << "Failed to load from file " << *savePath << '\n';
         return false;
     }
+
+    std::cout << "Loading from " << *savePath << '\n';
 
     std::string line;
     while (std::getline(inputFile, line)) {
@@ -56,21 +60,51 @@ bool REPL::LoadFromFile(const char* fileName) {
     }
 
     if (items > 0)
-        std::cout << "\nLoaded " << items << " item" << (items > 1 ? "s." : ".") << '\n';
+        std::cout << "Loaded " << items << " item" << (items > 1 ? "s " : " ") << "from " << *savePath << '\n';
     else
-        std::cout << "\nNo items to load.\n";
+        std::cout << "\nNo items to load\n";
 
     return true;
 }
 
-bool REPL::SaveToFile(const char* fileName) {
-    std::cout << "\nSaving to " << fileName << '\n';
+bool REPL::LoadConfig(std::filesystem::path configPath) {
+    std::ifstream inputFile(configPath);
 
-    std::ofstream outputFile(fileName);
+    std::cout << "Loading configuration...\n";
+
+    if (!inputFile) {
+        std::cout << "Couldn't find " << configPath << " -> using default configuration\n\n";
+        return false;
+    }
+
+    std::string line;
+    while (std::getline(inputFile, line)) {
+        std::istringstream iss(line);
+        std::string key, value;
+
+        if (!(iss >> key >> std::quoted(value))) {
+            std::cerr << "Failed to parse line: " << line << '\n';
+            continue;
+        }
+
+        if (key == "SAVE_PATH:") {
+            m_config.setSavePath(value);
+        }
+    }
+    
+    std::cout << "Retrieved configuration from " << configPath << '\n';
+    return true;
+}
+
+bool REPL::SaveToFile() {
+    std::filesystem::path* savePath{ m_config.getSavePath() };
+    std::cout << "\nSaving to " << *savePath << '\n';
+
+    std::ofstream outputFile(*savePath);
     int items{ 0 };
 
     if (!outputFile.is_open()) {
-        std::cerr << "Failed to save to file " << fileName << '\n';
+        std::cerr << "Failed to save to " << *savePath << '\n';
         return false;
     }
 
@@ -84,13 +118,13 @@ bool REPL::SaveToFile(const char* fileName) {
     outputFile << oss.str();
 
     if (outputFile.fail()) {
-        std::cerr << "Error occurred while writing to file " << fileName << '\n';
+        std::cerr << "Error occurred while writing to " << savePath << '\n';
         return false;
     }
 
-    std::cout << "Successfully saved " << items << " item" << (items > 1 ? "s " : " ") << " to " << fileName << '\n';
+    std::cout << "Successfully saved " << items << " item" << (items > 1 ? "s " : " ") << " to " << *savePath << '\n';
     outputFile.close();
-    saved = true;
+    m_saved = true;
     return true;
 }
 
@@ -130,7 +164,7 @@ void REPL::AddTask() {
     Task newTask(taskName, taskDesc, taskState);
     m_tasklist[taskName] = newTask;
     std::cout << "Successfully added task '" << taskName << "'!\n";
-    saved = false;
+    m_saved = false;
 }
 
 void REPL::RmTask() {
@@ -141,7 +175,7 @@ void REPL::RmTask() {
     if (task != m_tasklist.end()) {
         std::cout << "Removed task '" << task->first << "'!\n";
         m_tasklist.erase(task->first);
-        saved = false;
+        m_saved = false;
         return;
     }
 
@@ -172,7 +206,7 @@ void REPL::SetTaskState() {
 
     task->second.state = taskState;
     std::cout << "Marked " << taskName << " as " << (taskState == TaskState::COMPLETE ? "complete" : "incomplete") << '\n';
-    saved = false;
+    m_saved = false;
 }
 
 void REPL::ListTasks() {
@@ -206,10 +240,10 @@ void REPL::MainLoop() {
                     ListTasks();
                     break;
                 case 5:
-                    SaveToFile("tasks");
+                    SaveToFile();
                     break;
                 case 6:
-                    if (saved)
+                    if (m_saved)
                         exit(0);
                     else {
                         std::cout << "\nYou have unsaved changes!\n";
@@ -230,8 +264,12 @@ void REPL::MainLoop() {
     }
 }
 
-void REPL::Run() {
-    LoadFromFile("tasks");
+void REPL::Run(std::filesystem::path configPath) {
+    Config config;
+    m_config = config;
+
+    LoadConfig(configPath);
+    LoadFromFile();
 
     MainLoop();
 }

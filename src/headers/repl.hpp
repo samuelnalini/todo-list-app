@@ -1,9 +1,11 @@
 #pragma once
 
+#include <filesystem>
 #include <unordered_map>
 #include <string>
 
 enum class TaskState;
+class Config;
 class Task;
 class REPL;
 
@@ -26,15 +28,32 @@ typedef struct Task {
 
 } Task;
 
-typedef class REPL {
+typedef class Config {
 public:
-    REPL() {};
+    Config() = default;
 
-    void Run();
+    std::filesystem::path* getSavePath() {
+        return &m_savepath;
+    }
+
+    void setSavePath(std::filesystem::path path) {
+        m_savepath = path;
+    }
 
 private:
-    bool LoadFromFile(const char* fileName);
-    bool SaveToFile(const char* fileName);
+    std::filesystem::path m_savepath{ "tasks" };
+} Config;
+
+typedef class REPL {
+public:
+    REPL() = default;
+
+    void Run(std::filesystem::path configPath);
+
+private:
+    bool LoadConfig(std::filesystem::path configPath);
+    bool LoadFromFile();
+    bool SaveToFile();
     void MainLoop();
     void PrintMenu();
     void AddTask();
@@ -42,8 +61,8 @@ private:
     void SetTaskState();
     void ListTasks();
     
-
 private:
     std::unordered_map<std::string, Task> m_tasklist;
-    bool saved{ true };
+    Config m_config;
+    bool m_saved{ true };
 } REPL;
