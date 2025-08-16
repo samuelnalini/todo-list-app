@@ -30,3 +30,5 @@ I learned a lot from this experience, including:
   - Error handling
   - Makefiles
   - And more
+
+*There will be a remade version in C coming soon*
